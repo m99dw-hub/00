@@ -1,0 +1,15 @@
+[Unit]
+Description=Android Agent Orchestrator (FastAPI + LangGraph)
+After=network.target
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/home/agent/android-agent-system/orchestrator
+EnvironmentFile=/home/agent/android-agent-system/.env
+ExecStart=/home/agent/android-agent-system/orchestrator/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
