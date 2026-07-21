@@ -322,5 +322,6 @@ def build_graph():
 
 async def get_compiled_graph():
     graph = build_graph()
+    os.makedirs("checkpoints", exist_ok=True)    
     saver = AsyncSqliteSaver.from_conn_string("checkpoints/state.sqlite")
     return graph.compile(checkpointer=await saver.__aenter__())
