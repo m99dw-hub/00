@@ -9,7 +9,7 @@ Uruchamianie: uvicorn main:app --host 127.0.0.1 --port 8000
 """
 import asyncio
 import uuid
-
+import traceback
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -22,7 +22,7 @@ app = FastAPI(title="android-agent-orchestrator")
 
 _graph = None
 _task_queue: asyncio.Queue = asyncio.Queue()  # sekwencyjne przetwarzanie zadan
-
+_pending_clarifications: dict[str, str] = {}  # chat_id -> tresc pierwotnego zadania czekajacego na doprecyzowanie
 
 class IncomingTask(BaseModel):
     chat_id: str
@@ -42,6 +42,10 @@ async def _worker():
     global _graph
     while True:
         chat_id, text = await _task_queue.get()
+        if chat_id in _pending_clarifications:
+            original = _pending_clarifications.pop(chat_id)
+            text = f"{original}\n\nDoprecyzowanie od użytkownika: {text}"
+
         task_id = str(uuid.uuid4())[:8]
 
         await send_whatsapp_message(chat_id, f"🔧 [{task_id}] Przyjąłem zadanie, analizuję...")
@@ -72,6 +76,7 @@ async def _worker():
         try:
             final_state = await _graph.ainvoke(initial_state, config=config)
         except Exception as exc:  # noqa: BLE001 - chcemy zlapac wszystko i zaraportowac
+            traceback.print_exc()
             await send_whatsapp_message(chat_id, f"🛑 [{task_id}] Błąd systemowy: {exc}")
             _task_queue.task_done()
             continue
