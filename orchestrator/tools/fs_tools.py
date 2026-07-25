@@ -37,3 +37,24 @@ def write_code_files(code_files: list[dict]) -> list[str]:
             fh.write(entry["content"])
         written.append(rel_path)
     return written
+
+
+def list_repo_tree(max_entries: int = 200) -> str:
+    """
+    Zwraca liste plikow istniejacych w repo aplikacji Android (wzgledne
+    sciezki), pomijajac .git i katalogi budowania. Przekazywana agentom
+    jako kontekst, zeby nie dzialali "w ciemno" bez wiedzy o istniejacym
+    projekcie.
+    """
+    import os as _os
+
+    ignored_dirs = {".git", "build", ".gradle", ".idea", "node_modules"}
+    entries = []
+    for root, dirs, files in _os.walk(settings.ANDROID_REPO_PATH):
+        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        for name in files:
+            rel = _os.path.relpath(_os.path.join(root, name), settings.ANDROID_REPO_PATH)
+            entries.append(rel)
+            if len(entries) >= max_entries:
+                return "\n".join(sorted(entries)) + "\n... (lista skrocona)"
+    return "\n".join(sorted(entries)) if entries else "(repo puste)"
