@@ -34,8 +34,9 @@ async def clarify_node(state: TaskState) -> TaskState:
     # przechodzimy na tryb "pytanie doprecyzowujace", jesli to nie JSON.
     from agents.base import strip_code_fence
 
+    source_files = fs_tools.read_repo_source_files()
     repo_tree = fs_tools.list_repo_tree()
-    context = (state.get("conversation_history") or state["raw_request"]) + f"\n\nIstniejace pliki w repo aplikacji:\n{repo_tree}"
+    context = (state.get("conversation_history") or state["raw_request"]) + f"\n\nIstniejace pliki w repo aplikacji:\n{repo_tree}" + f"\n\nZawartosc plikow zrodlowych:\n{source_files}"
     response = await call_agent("orchestrator", ORCHESTRATOR, context)
     try:
         parsed = json.loads(strip_code_fence(response))
@@ -85,6 +86,7 @@ async def assign_agent_node(state: TaskState) -> TaskState:
 
     context = f"Zadanie: {subtask['description']}\n\nWymagania:\n{state['requirements_snapshot']}"
     context += f"\n\nIstniejace pliki w repo aplikacji:\n{fs_tools.list_repo_tree()}"
+    context += f"\n\nZawartosc istniejacych plikow zrodlowych:\n{fs_tools.read_repo_source_files()}"
     if state.get("review1_feedback"):
         context += f"\n\nFeedback z Review I (popraw dokladnie to):\n{state['review1_feedback']}"
     if state.get("review2_feedback"):
