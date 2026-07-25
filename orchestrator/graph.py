@@ -301,6 +301,9 @@ def build_graph():
     g.add_node("review2", review2_node)
     g.add_node("versioning", versioning_node)
     g.add_node("failure_report", failure_report_node)
+    g.add_node("advance_subtask", advance_subtask_node)
+    g.add_conditional_edges("assign_agent", after_assign_agent, {"review1": "review1", "advance_subtask": "advance_subtask"})
+    g.add_conditional_edges("advance_subtask", after_advance_subtask, {"assign_agent": "assign_agent", "versioning": "versioning"})
 
     g.set_entry_point("clarify")
     g.add_conditional_edges("clarify", after_clarify, {
@@ -308,7 +311,6 @@ def build_graph():
         "load_requirements": "load_requirements",
     })
     g.add_edge("load_requirements", "assign_agent")
-    g.add_edge("assign_agent", "review1")
     g.add_conditional_edges("review1", after_review1, {
         "push_for_ci": "push_for_ci",
         "review2": "review2",
@@ -333,3 +335,24 @@ async def get_compiled_graph():
     conn = await aiosqlite.connect("checkpoints/state.sqlite")
     checkpointer = AsyncSqliteSaver(conn)
     return graph.compile(checkpointer=checkpointer)
+
+
+async def advance_subtask_node(state: TaskState) -> TaskState:
+    """Dla podzadan nie-developerskich (ux/architekt/devops) - pomija Review I/II
+    (ktore ocenialyby kod Kotlin, a te role zwracaja tekstowa specyfikacje) i po
+    prostu oznacza podzadanie jako zakonczone."""
+    subtask = state["subtasks"][state["current_subtask_idx"]]
+    subtask["status"] = "done"
+    return state
+
+
+def after_assign_agent(state: TaskState) -> str:
+    subtask = state["subtasks"][state["current_subtask_idx"]]
+    return "review1" if subtask["agent"] == "developer" else "advance_subtask"
+
+
+def after_advance_subtask(state: TaskState) -> str:
+    state["current_subtask_idx"] += 1
+    if state["current_subtask_idx"] < len(state["subtasks"]):
+        return "assign_agent"
+    return "versioning"
