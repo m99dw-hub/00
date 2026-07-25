@@ -22,7 +22,20 @@ app = FastAPI(title="android-agent-orchestrator")
 
 _graph = None
 _task_queue: asyncio.Queue = asyncio.Queue()  # sekwencyjne przetwarzanie zadan
-_pending_clarifications: dict[str, str] = {}  # chat_id -> tresc pierwotnego zadania czekajacego na doprecyzowanie
+_conversation_history: dict[str, list[dict]] = {}  # chat_id -> [{"role": "user"|"assistant", "content": str}]
+_HISTORY_LIMIT = 40  # zabezpieczenie przed nieograniczonym wzrostem kosztu tokenow
+
+
+def _append_history(chat_id: str, role: str, content: str) -> None:
+    history = _conversation_history.setdefault(chat_id, [])
+    history.append({"role": role, "content": content})
+    del history[:-_HISTORY_LIMIT]
+
+
+def _format_history(chat_id: str) -> str:
+    history = _conversation_history.get(chat_id, [])
+    return "\n".join(f"{h['role']}: {h['content']}" for h in history)
+
 
 class IncomingTask(BaseModel):
     chat_id: str
@@ -42,10 +55,7 @@ async def _worker():
     global _graph
     while True:
         chat_id, text = await _task_queue.get()
-        if chat_id in _pending_clarifications:
-            original = _pending_clarifications.pop(chat_id)
-            text = f"{original}\n\nDoprecyzowanie od użytkownika: {text}"
-
+        _append_history(chat_id, "user", text)
         task_id = str(uuid.uuid4())[:8]
 
         await send_whatsapp_message(chat_id, f"🔧 [{task_id}] Przyjąłem zadanie, analizuję...")
@@ -54,6 +64,7 @@ async def _worker():
             "task_id": task_id,
             "whatsapp_chat_id": chat_id,
             "raw_request": text,
+            "conversation_history": _format_history(chat_id),
             "needs_clarification": False,
             "clarification_question": None,
             "requirements_snapshot": "",
@@ -82,17 +93,14 @@ async def _worker():
             continue
 
         if final_state.get("needs_clarification"):
-            await send_whatsapp_message(
-                chat_id, f"❓ [{task_id}] {final_state['clarification_question']}"
-            )
+            reply = f"❓ [{task_id}] {final_state['clarification_question']}"
         elif final_state["status"] == "done":
-            await send_whatsapp_message(
-                chat_id, f"✅ [{task_id}] Gotowe. {final_state.get('failure_reason', '')}"
-            )
+            reply = f"✅ [{task_id}] Gotowe. {final_state.get('failure_reason', '')}"
         else:
-            await send_whatsapp_message(
-                chat_id, f"❌ [{task_id}] {final_state.get('failure_reason', 'Niepowodzenie')}"
-            )
+            reply = f"❌ [{task_id}] {final_state.get('failure_reason', 'Niepowodzenie')}"
+
+        _append_history(chat_id, "assistant", reply)
+        await send_whatsapp_message(chat_id, reply)
 
         _task_queue.task_done()
 

@@ -17,6 +17,7 @@ class TaskState(TypedDict):
     task_id: str
     whatsapp_chat_id: str
     raw_request: str  # oryginalna wiadomosc od uzytkownika
+    conversation_history: str  # sformatowana historia dotychczasowej rozmowy z tym czatem
 
     needs_clarification: bool
     clarification_question: Optional[str]

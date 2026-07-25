@@ -13,6 +13,7 @@ import os
 import uuid
 
 from langgraph.graph import StateGraph, END
+import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from config import settings
@@ -33,7 +34,8 @@ async def clarify_node(state: TaskState) -> TaskState:
     # przechodzimy na tryb "pytanie doprecyzowujace", jesli to nie JSON.
     from agents.base import strip_code_fence
 
-    response = await call_agent("orchestrator", ORCHESTRATOR, state["raw_request"])
+    context = state.get("conversation_history") or state["raw_request"]
+    response = await call_agent("orchestrator", ORCHESTRATOR, context)
     try:
         parsed = json.loads(strip_code_fence(response))
         if not isinstance(parsed, list):
@@ -321,7 +323,8 @@ def build_graph():
 
 
 async def get_compiled_graph():
+    os.makedirs("checkpoints", exist_ok=True)
     graph = build_graph()
-    os.makedirs("checkpoints", exist_ok=True)    
-    saver = AsyncSqliteSaver.from_conn_string("checkpoints/state.sqlite")
-    return graph.compile(checkpointer=await saver.__aenter__())
+    conn = await aiosqlite.connect("checkpoints/state.sqlite")
+    checkpointer = AsyncSqliteSaver(conn)
+    return graph.compile(checkpointer=checkpointer)
