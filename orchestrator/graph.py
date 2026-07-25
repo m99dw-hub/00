@@ -67,6 +67,7 @@ async def load_requirements_node(state: TaskState) -> TaskState:
         with open(settings.REQUIREMENTS_FILE, "w", encoding="utf-8") as f:
             f.write(updated)
         state["requirements_updated"] = True
+        from tools.xlsx_export import export_requirements_to_xlsx; export_requirements_to_xlsx()
 
     state["requirements_snapshot"] = updated
     return state
@@ -231,7 +232,7 @@ async def versioning_node(state: TaskState) -> TaskState:
         f.write(f"\n- {changelog_entry}")
 
     written_files = state.get("written_files", [])
-    files_to_commit = [settings.CHANGELOG_FILE] + [
+    files_to_commit = [settings.CHANGELOG_FILE] + ([settings.REQUIREMENTS_FILE] if os.path.exists(settings.REQUIREMENTS_FILE) else []) + ([settings.REQUIREMENTS_XLSX] if os.path.exists(settings.REQUIREMENTS_XLSX) else []) + [
         os.path.join(settings.ANDROID_REPO_PATH, rel) for rel in written_files
     ]
 

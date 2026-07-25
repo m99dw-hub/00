@@ -32,6 +32,7 @@ class Settings:
     # Repo lokalne
     ANDROID_REPO_PATH: str = os.getenv("ANDROID_REPO_PATH", "/home/agent/android-app")
     REQUIREMENTS_FILE: str = os.path.join(ANDROID_REPO_PATH, "REQUIREMENTS.md")
+    REQUIREMENTS_XLSX: str = os.path.join(ANDROID_REPO_PATH, "REQUIREMENTS.xlsx")
     CHANGELOG_FILE: str = os.path.join(ANDROID_REPO_PATH, "CHANGELOG.md")
 
     # Petla weryfikacji
