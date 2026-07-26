@@ -48,7 +48,7 @@ class Settings:
         "requirements": "anthropic/claude-haiku-4.5",
         "ux": "anthropic/claude-haiku-4.5",
         "architect": "anthropic/claude-sonnet-4.6",
-        "developer": "anthropic/claude-sonnet-4.6",
+        "developer": "anthropic/claude-opus-4.8",
         "reviewer": "anthropic/claude-sonnet-4.6",
         "qa": "anthropic/claude-haiku-4.5",
         "devops": "anthropic/claude-haiku-4.5",
