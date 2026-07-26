@@ -7,6 +7,9 @@ Type=simple
 User=agent
 WorkingDirectory=/home/agent/android-agent-system/orchestrator
 EnvironmentFile=/home/agent/android-agent-system/.env
+Environment=GIT_TERMINAL_PROMPT=0
+Environment=GIT_HTTP_LOW_SPEED_LIMIT=1000
+Environment=GIT_HTTP_LOW_SPEED_TIME=30
 ExecStart=/home/agent/android-agent-system/orchestrator/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
