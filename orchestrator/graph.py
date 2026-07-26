@@ -35,8 +35,10 @@ async def clarify_node(state: TaskState) -> TaskState:
     from agents.base import strip_code_fence
 
     source_files = fs_tools.read_repo_source_files()
+    with open(settings.REQUIREMENTS_FILE, encoding="utf-8") as _f:
+        requirements_content = _f.read()[:20000]
     repo_tree = fs_tools.list_repo_tree()
-    context = (state.get("conversation_history") or state["raw_request"]) + f"\n\nIstniejace pliki w repo aplikacji:\n{repo_tree}" + f"\n\nZawartosc plikow zrodlowych:\n{source_files}"
+    context = (state.get("conversation_history") or state["raw_request"]) + f"\n\nAktualne REQUIREMENTS.md:\n{requirements_content}" + f"\n\nIstniejace pliki w repo aplikacji:\n{repo_tree}" + f"\n\nZawartosc plikow zrodlowych:\n{source_files}"
     response = await call_agent("orchestrator", ORCHESTRATOR, context)
     try:
         parsed = json.loads(strip_code_fence(response))
