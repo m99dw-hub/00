@@ -9,6 +9,7 @@ clarify -> load_requirements -> decompose -> assign_agent -> review1
 retry_count wspolny dla review1 + review2, max settings.MAX_RETRIES -> failure_report
 """
 import json
+import re
 import os
 import uuid
 
@@ -45,6 +46,20 @@ async def clarify_node(state: TaskState) -> TaskState:
         if not isinstance(parsed, list):
             raise json.JSONDecodeError("oczekiwano listy", response, 0)
     except json.JSONDecodeError:
+        match = re.search(r"\[.*\]", response, re.DOTALL)
+        if match:
+            try:
+                parsed = json.loads(match.group(0))
+                if isinstance(parsed, list):
+                    state["needs_clarification"] = False
+                    state["subtasks"] = [
+                        {"id": str(uuid.uuid4())[:8], "description": s["description"],
+                         "agent": s["agent"], "status": "pending"}
+                        for s in parsed
+                    ]
+                    return state
+            except json.JSONDecodeError:
+                pass
         state["needs_clarification"] = True
         state["clarification_question"] = response
         return state
