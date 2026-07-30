@@ -19,6 +19,7 @@ const BRIDGE_PORT = process.env.BRIDGE_PORT || 3000
 const ALLOWED_JID = process.env.ALLOWED_WHATSAPP_JID
 
 let sock
+const sentMessageIds = new Set()
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState('./auth')
@@ -27,6 +28,18 @@ async function startSock() {
     auth: state,
     logger: pino({ level: 'warn' }),
   })
+
+  if (!sock.authState.creds.registered) {
+    const phoneNumber = process.env.ALLOWED_WHATSAPP_JID.split('@')[0]
+    setTimeout(async () => {
+      try {
+        const code = await sock.requestPairingCode(phoneNumber)
+        console.log("KOD PAROWANIA:", code)
+      } catch (err) {
+        console.log("Blad przy generowaniu kodu parowania:", err.message)
+      }
+    }, 3000)
+  }
 
   sock.ev.on('creds.update', saveCreds)
 
@@ -39,7 +52,7 @@ async function startSock() {
     if (connection === 'close') {
       const shouldReconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
-      console.log('Polaczenie zamkniete, reconnect:', shouldReconnect)
+      console.log('Polaczenie zamkniete, reconnect:', shouldReconnect, 'kod:', lastDisconnect?.error?.output?.statusCode, 'powod:', lastDisconnect?.error?.message)
       if (shouldReconnect) startSock()
     } else if (connection === 'open') {
       console.log('Polaczono z WhatsApp.')
@@ -49,7 +62,8 @@ async function startSock() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
     const msg = messages[0]
-    if (!msg.message || msg.key.fromMe) return
+    if (!msg.message) return
+    if (msg.key.fromMe && sentMessageIds.has(msg.key.id)) return
 
     const chatId = msg.key.remoteJid
     const text =
@@ -69,10 +83,12 @@ async function startSock() {
         body: JSON.stringify({ chat_id: chatId, text }),
       })
       if (!resp.ok) {
-        await sock.sendMessage(chatId, { text: `⚠️ Orchestrator odrzucił zadanie (HTTP ${resp.status}).` })
+        const sent = await sock.sendMessage(chatId, { text: `⚠️ Orchestrator odrzucił zadanie (HTTP ${resp.status}).` })
+        if (sent?.key?.id) sentMessageIds.add(sent.key.id)
       }
     } catch (err) {
-      await sock.sendMessage(chatId, { text: `⚠️ Nie mogę połączyć się z orchestratorem: ${err.message}` })
+      const sent = await sock.sendMessage(chatId, { text: `⚠️ Nie mogę połączyć się z orchestratorem: ${err.message}` })
+      if (sent?.key?.id) sentMessageIds.add(sent.key.id)
     }
   })
 }
@@ -85,7 +101,8 @@ app.post('/send', async (req, res) => {
   const { chat_id, text } = req.body
   if (!sock) return res.status(503).json({ error: 'WhatsApp jeszcze nie polaczony' })
   try {
-    await sock.sendMessage(chat_id, { text })
+    const sent = await sock.sendMessage(chat_id, { text })
+    if (sent?.key?.id) sentMessageIds.add(sent.key.id)
     res.json({ status: 'sent' })
   } catch (err) {
     res.status(500).json({ error: err.message })
