@@ -103,13 +103,13 @@ async def assign_agent_node(state: TaskState) -> TaskState:
 
     context = f"Zadanie: {subtask['description']}\n\nWymagania:\n{state['requirements_snapshot']}"
     context += f"\n\nIstniejace pliki w repo aplikacji:\n{fs_tools.list_repo_tree()}"
-    context += f"\n\nZawartosc istniejacych plikow zrodlowych:\n{fs_tools.read_repo_source_files()}"
     if state.get("review1_feedback"):
         context += f"\n\nFeedback z Review I (popraw dokladnie to):\n{state['review1_feedback']}"
     if state.get("review2_feedback"):
         context += f"\n\nFeedback z Review II (popraw dokladnie to):\n{state['review2_feedback']}"
 
     if role == "developer":
+        context += f"\n\nZawartosc istniejacych plikow zrodlowych:\n{fs_tools.read_repo_source_files()}"
         # Developer zwraca liste plikow (JSON) - patrz prompts.DEVELOPER.
         # Jesli model uporczywie nie zwroci poprawnego JSON-a nawet po
         # probach naprawy w call_agent_json, nie ubijamy calego zadania:
