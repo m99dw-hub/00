@@ -1,0 +1,16 @@
+[Unit]
+Description=Discord Bridge (discord.js)
+After=network.target orchestrator.service
+Wants=orchestrator.service
+
+[Service]
+Type=simple
+User=agent
+WorkingDirectory=/home/agent/android-agent-system/discord-bridge
+EnvironmentFile=/home/agent/android-agent-system/.env
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
