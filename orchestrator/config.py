@@ -28,6 +28,7 @@ class Settings:
 
     # Bezpieczenstwo
     ALLOWED_WHATSAPP_JID: str = os.environ["ALLOWED_WHATSAPP_JID"]
+    ALLOWED_DISCORD_USER_ID: str = os.getenv("ALLOWED_DISCORD_USER_ID", "")
 
     # Repo lokalne
     ANDROID_REPO_PATH: str = os.getenv("ANDROID_REPO_PATH", "/home/agent/android-app")

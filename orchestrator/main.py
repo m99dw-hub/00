@@ -40,6 +40,7 @@ def _format_history(chat_id: str) -> str:
 class IncomingTask(BaseModel):
     chat_id: str
     text: str
+    user_id: str = ""
 
 
 async def send_whatsapp_message(chat_id: str, text: str) -> None:
@@ -121,7 +122,9 @@ async def startup():
 
 @app.post("/task")
 async def receive_task(task: IncomingTask):
-    if task.chat_id != settings.ALLOWED_WHATSAPP_JID:
+    is_whatsapp = task.chat_id == settings.ALLOWED_WHATSAPP_JID
+    is_discord = settings.ALLOWED_DISCORD_USER_ID and task.user_id == settings.ALLOWED_DISCORD_USER_ID
+    if not (is_whatsapp or is_discord):
         raise HTTPException(status_code=403, detail="Nieautoryzowany nadawca")
 
     await _task_queue.put((task.chat_id, task.text))
